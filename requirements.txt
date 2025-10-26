@@ -1,19 +1,32 @@
-﻿fastapi==0.115.0
+﻿# --- core web stack ---
+fastapi==0.115.0
 uvicorn[standard]==0.32.0
 
+# --- data / db ---
 sqlalchemy==2.0.36
-pydantic==2.9.2
 python-multipart==0.0.12
 anyio==4.11.0
 typing-extensions>=4.11
 
+# --- request utils / helpers ---
+requests==2.32.3
+tqdm==4.67.1
+python-dotenv==1.0.1
+
+# --- auth / security ---
 python-jose==3.3.0
 passlib[bcrypt]==1.7.4
-requests==2.32.3
 
+# --- pydantic (with email validation support) ---
+pydantic[email]==2.9.2
+email_validator==2.2.0
+
+# --- embeddings / RAG ---
 chromadb==0.4.24
 sentence-transformers==3.2.1
+numpy<2.0.0
 
+# --- doc parsing / OCR ---
 pdfplumber==0.11.3
 python-docx==1.1.2
 PyPDF2==3.0.1
@@ -21,12 +34,9 @@ pytesseract==0.3.13
 pdf2image==1.17.0
 Pillow==10.4.0
 
+# --- OpenAI client (optional, only used if OPENAI_API_KEY is set) ---
 openai==1.52.2
-tqdm==4.67.1
 
+# --- frontend & local dev ---
 streamlit==1.39.0
 pytest==8.3.3
-
-email_validator==2.2.0
-python-dotenv==1.0.1
-numpy<2.0.0
