@@ -1,0 +1,17 @@
+Party-B (victim): Hello, who is calling please? 
+
+Party-A (scammer): Hi, this is <party-A's name> calling from ABC bank, how are you doing today?
+
+Party-B (victim): I'm doing good, may I ask why you're calling? 
+
+Party-A (scammer): We’ve detected suspicious activity on your credit card, and we need to verify some details immediately to prevent your card from being locked. For verification, I’ll need your full name and the CVV number on the back of your credit card
+
+Party-B (victim): Please hold on, let me go find my credit card ... in the meantime, my name is <party-B's full name> ...
+
+(AI detects fraud call and plays alert message to party-B)
+
+Party-B (victim): Sorry I can't provide this information now. I will call the bank later. Goodbye.
+
+
+
+   

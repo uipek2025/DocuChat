@@ -1,0 +1,2 @@
+This is a DocuChat automated test file.
+It should be summarized and embedded without errors.

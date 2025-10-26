@@ -1,0 +1,39 @@
+# Virtual environments
+.venv/
+.venv1/
+docuchat_backend/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+.pytest_cache/
+*.egg-info/
+
+# Local databases / runtime state
+docuchat_backend/docuchat.db
+docuchat.db
+
+# Local vector DB / embeddings
+docuchat_backend/chroma_db/
+
+# Uploaded user files (they'll be re-uploaded after deploy anyway)
+docuchat_backend/app/uploads/
+uploaded_files/
+
+# IDE/editor cruft
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# env files with secrets
+.env
+.env.local
