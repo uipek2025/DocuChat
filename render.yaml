@@ -1,43 +1,72 @@
 services:
+  # ------------------------
+  # BACKEND: FastAPI + uvicorn
+  # ------------------------
   - type: web
     name: docuchat-api
     env: python
     plan: free
+
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn docuchat_backend.app.main:app --host 0.0.0.0 --port 8000"
+
+    # IMPORTANT:
+    # Render injects $PORT at runtime (not always 8000).
+    # We must bind uvicorn to that value.
+    startCommand: "uvicorn docuchat_backend.app.main:app --host 0.0.0.0 --port $PORT"
+
     envVars:
       - key: PORT
-        value: "8000"
+        value: "8000"         # default/fallback; Render will still override with a real port
+
       - key: JWT_SECRET
-        sync: false
+        sync: false           # you'll paste this in Render dashboard
+
       - key: JWT_ALG
         value: "HS256"
+
       - key: OPENAI_API_KEY
-        sync: false
+        sync: false           # you'll paste this in Render dashboard
+
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"
+
+      # SQLite path inside container. Leave as relative-from-repo-root.
       - key: DATABASE_URL
         value: "sqlite:///./docuchat_backend/docuchat.db"
+
       - key: CHROMA_DB_DIR
         value: "docuchat_backend/chroma_db"
+
       - key: CHROMA_COLLECTION
         value: "docuchat"
 
+  # ------------------------
+  # FRONTEND: Streamlit
+  # ------------------------
   - type: web
     name: docuchat-ui
     env: python
     plan: free
+
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "streamlit run app_streamlit.py --server.port 10000 --server.address 0.0.0.0"
+
+    # Streamlit needs to listen on the port Render gives it.
+    # We'll use $PORT here too.
+    startCommand: "streamlit run app_streamlit.py --server.address 0.0.0.0 --server.port $PORT"
+
     envVars:
       - key: PORT
-        value: "10000"
+        value: "10000"        # fallback only; Render overrides anyway
+
       - key: API_BASE
-        # 👇 IMPORTANT: after the API service deploys,
-        # replace this with your actual public URL for docuchat-api.
-        # e.g. "https://docuchat-api.onrender.com"
+        # AFTER backend deploys, update this in Render dashboard
+        # to the public URL of docuchat-api, e.g.:
+        # https://docuchat-api.onrender.com
         value: "http://localhost:8000"
-      - key: JWT_SECRET
-        sync: false
+
+      # the frontend itself doesn't need JWT_SECRET
+      # so we can remove JWT_SECRET here; keeping secrets
+      # only where they're used is safer.
+
       - key: OPENAI_MODEL
         value: "gpt-4o-mini"

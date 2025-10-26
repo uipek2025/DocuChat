@@ -1,11 +1,11 @@
 ﻿fastapi==0.115.0
-uvicorn[standard]==0.32.0
+uvicorn[standard]==0.30.6
 
 sqlalchemy==2.0.36
 pydantic==2.9.2
 python-multipart==0.0.12
 anyio==4.11.0
-typing-extensions==4.12.2
+typing-extensions>=4.11
 
 python-jose==3.3.0
 passlib[bcrypt]==1.7.4
@@ -26,3 +26,6 @@ tqdm==4.67.1
 
 streamlit==1.39.0
 pytest==8.3.3
+
+email_validator==2.2.0
+python-dotenv==1.0.1
