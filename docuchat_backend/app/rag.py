@@ -79,17 +79,12 @@ EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-M
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-# IMPORTANT: update these two for your Windows install paths.
+# IMPORTANT: update these two for your Linux install paths.
 # If you add tesseract/poppler to PATH later, you can set them to None.
-TESSERACT_EXE = os.getenv(
-    "TESSERACT_EXE",
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
 
-POPLER_BIN_DIR = os.getenv(
-    "POPLER_BIN_DIR",
-    r"C:\Tools\poppler-25.07.0\Library\bin"
-)
+TESSERACT_EXE = os.getenv("TESSERACT_EXE", None)
+POPLER_BIN_DIR = os.getenv("POPLER_BIN_DIR", None)
+
 
 
 # ---------- globals ----------
