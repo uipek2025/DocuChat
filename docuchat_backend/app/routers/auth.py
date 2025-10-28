@@ -14,9 +14,13 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
+import logging
 from .. import models, auth
 from ..database import get_db
+
+logger = logging.getLogger("docuchat.router.auth")
+
+MAX_PW_LEN = 72
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,9 +31,11 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
+
 
 class ResetPasswordRequest(BaseModel):
     email: str
@@ -67,6 +73,13 @@ def register_user(
             detail="Email already registered",
         )
 
+    # Enforce bcrypt max password length (72 bytes)
+    if len(body.password.encode("utf-8")) > MAX_PW_LEN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password too long. Maximum {MAX_PW_LEN} characters allowed.",
+        )
+
     # Hash password
     hashed_pw = auth.get_password_hash(body.password)
 
@@ -84,6 +97,8 @@ def register_user(
         data={"sub": new_user.email},
         expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
+
+    logger.info(f"register success for {new_user.email} (id={new_user.id})")
 
     # Respond in the shape Streamlit expects
     return {
@@ -103,7 +118,7 @@ def login_user(
     creds: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    print("DEBUG login_user creds=", creds)  # <--- ADD THIS LINE
+    print("DEBUG login_user creds=", creds)  # Debug line for tracing
 
     """
     Authenticate a user from JSON body {email, password} and return JWT.
@@ -165,6 +180,13 @@ def reset_password(
 
     email_clean = body.email.strip().lower()
     new_password_raw = body.new_password
+
+    # Enforce bcrypt max password length (72 bytes)
+    if len(new_password_raw.encode("utf-8")) > MAX_PW_LEN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password too long. Maximum {MAX_PW_LEN} characters allowed.",
+        )
 
     # Find user
     user = (
