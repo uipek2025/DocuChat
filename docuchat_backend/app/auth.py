@@ -12,7 +12,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from .database import get_db  # use the canonical get_db from database.py
+from .database import get_db  # canonical get_db
 from . import models
 
 logger = logging.getLogger("docuchat.auth")
@@ -21,25 +21,26 @@ logger.setLevel(logging.INFO)
 # -----------------------------
 # Password hashing
 # -----------------------------
+# We use pbkdf2_sha256 instead of bcrypt because:
+# - it's stable in slim Docker images
+# - it doesn't depend on the system bcrypt wheels that were blowing up
+# - it's still a standard KDF, safe for app-level passwords
 _pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
     deprecated="auto",
 )
 
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Check a plaintext password against a stored bcrypt hash.
+    Check a plaintext password against a stored hash.
     """
     return _pwd_context.verify(plain_password, hashed_password)
 
-
 def get_password_hash(password: str) -> str:
     """
-    Hash a plaintext password using bcrypt.
+    Hash a plaintext password using pbkdf2_sha256.
     """
     return _pwd_context.hash(password)
-
 
 # -----------------------------
 # JWT config
@@ -55,14 +56,13 @@ if not SECRET_KEY:
 ALGORITHM = os.getenv("JWT_ALG", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 
-
 def create_access_token(
     data: dict,
     expires_delta: Optional[timedelta] = None
 ) -> str:
     """
     Create a signed JWT for `data` with an 'exp' claim.
-    The caller is responsible for passing {"sub": user.email} etc.
+    The caller passes e.g. {"sub": user.email}.
     """
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
@@ -73,11 +73,10 @@ def create_access_token(
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
     """
-    Legacy helper. Kept for compatibility, but we now normalize email,
-    and routers/auth.py actually does the logic inline.
+    Lookup user by normalized email, verify password.
+    Returns the User on success, else None.
     """
     email_clean = email.strip().lower()
     user = db.query(models.User).filter(models.User.email == email_clean).first()
@@ -87,22 +86,20 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
         return None
     return user
 
-
 # -----------------------------
 # Bearer token dependency for protected routes
 # -----------------------------
 _bearer_scheme = HTTPBearer(auto_error=False)
-
 
 def get_current_user(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
 ) -> models.User:
     """
-    - Extracts "Bearer <token>" from Authorization header
-    - Verifies the JWT
-    - Loads that user from DB
-    - Raises 401 if any check fails
+    - Extract "Bearer <token>" from Authorization header
+    - Verify the JWT
+    - Load that user from DB
+    - Raise 401 if any check fails
     """
     if credentials is None:
         logger.warning("get_current_user: no credentials provided")
@@ -132,9 +129,7 @@ def get_current_user(
             detail="Invalid token payload",
         )
 
-    # Important: we do NOT lowercase again here.
-    # We stored 'sub' = user.email at login/reset/register time,
-    # and that email is already normalized once on ingest.
+    # We stored user.email as-is in the token "sub", so look it up exactly.
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
         logger.warning(f"get_current_user: user {email} not found in DB")
