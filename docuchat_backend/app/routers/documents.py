@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from fastapi import Response
 from pathlib import Path as _Path
 from typing import List
 
@@ -21,9 +20,6 @@ def list_documents(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Return all documents for the logged-in user.
-    """
     docs = (
         db.query(models.Document)
         .filter(models.Document.user_id == current_user.id)
@@ -32,27 +28,21 @@ def list_documents(
     )
     return docs
 
+
 @router.post("/upload")
 def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Receive an uploaded file from the client, save it, create a DB row,
-    index it (OCR + embeddings), and return metadata.
-    """
-
-    # 1. Ensure upload dir exists
+    # 1) save to disk
     upload_dir = _Path(__file__).parent / "uploads"
     upload_dir.mkdir(exist_ok=True, parents=True)
-
-    # 2. Save file to disk
     saved_path = upload_dir / file.filename
     with open(saved_path, "wb") as out_f:
         out_f.write(file.file.read())
 
-    # 3. Create DB row with status "processing"
+    # 2) DB row
     doc = models.Document(
         user_id=current_user.id,
         filename=file.filename,
@@ -65,43 +55,28 @@ def upload_document(
     db.commit()
     db.refresh(doc)
 
-
-    # 4. Run indexing pipeline + generate AI insights
+    # 3) index + insights
     try:
-        # 4a. Embed into Chroma
         rag.store_document(doc.id, str(saved_path))
-
-        # 4b. Summarize + extract topics
         insights = rag.generate_doc_insights(str(saved_path))
-        doc.summary = insights.get("summary", None)
-
-        topics_list = insights.get("topics", [])
-        if topics_list:
-            # store "a, b, c" in DB for now
-            doc.topics = ", ".join(topics_list)
-        else:
-            doc.topics = None
-
-        # 4c. Mark success
+        doc.summary = insights.get("summary")
+        topics_list = insights.get("topics") or []
+        doc.topics = ", ".join(topics_list) if topics_list else None
         doc.status = "ready"
         db.add(doc)
         db.commit()
         db.refresh(doc)
-
     except Exception as e:
-        # mark failure (don't hide the fact that indexing blew up)
         doc.status = "error"
         db.add(doc)
         db.commit()
         db.refresh(doc)
-
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to index document: {e}",
         )
 
-
-    # 5. Respond to client
+    # 4) response
     return {
         "id": doc.id,
         "filename": doc.filename,
@@ -121,37 +96,19 @@ def delete_document(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """
-    Delete a document owned by the current user:
-    - remove its embeddings from Chroma
-    - delete the file from disk
-    - remove the DB row
-    """
-
-    # 1. Fetch and verify ownership
     doc = (
         db.query(models.Document)
-        .filter(
-            models.Document.id == doc_id,
-            models.Document.user_id == current_user.id,
-        )
+        .filter(models.Document.id == doc_id, models.Document.user_id == current_user.id)
         .first()
     )
-
     if not doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    # 2. Remove embeddings for this doc from Chroma
     try:
         rag.delete_document_embeddings(doc.id)
     except Exception:
-        # don't block delete if vector cleanup fails
         pass
 
-    # 3. Remove file from disk
     try:
         p = _Path(doc.file_path)
         if p.exists():
@@ -159,10 +116,6 @@ def delete_document(
     except Exception:
         pass
 
-    # 4. Delete DB row
     db.delete(doc)
     db.commit()
-
-    # 5. Return an explicit 204
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
